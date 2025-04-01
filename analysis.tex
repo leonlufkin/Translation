@@ -1,0 +1,50 @@
+% To add custom packages to the path, go to: /Users/leonlufkin/Library/texmf/tex/latex
+\documentclass{article}
+\usepackage{report}
+
+\title{Analysis of the Shared Representations Model}
+\author{Leon Lufkin}
+\date{\today}
+
+\makeatletter
+\let\Title\@title
+\let\Author\@author
+\let\Date\@date
+
+\begin{document}
+
+%%%%%%%%%%%%%%
+% Statement %%
+%%%%%%%%%%%%%%
+\section{Statement}
+The goal of this analysis is to understand the shared representations model.
+
+We have words in a vocabulary:
+\begin{align*}
+    \{ \bm{x}_1, \ldots, \bm{x}_V \} \subseteq \R^D,
+\end{align*}
+and a set of $L$ languages, indexed by $[L] = \{ 1, \ldots, L \}$.
+
+We train a gated deep linear network (GDLN) to ``translate'' words from one language into another.
+The gated deep linear network is represented by a collection of $L$ input and output weight matrices of dimensions $D \times H$ and $H \times D$, respectively.
+\begin{align*}
+    \hat{y}(\bm{x})
+    &= \sum_{l' \in [L]} g_{l'}(\bm{x}) \bm{W}_{l'} \left( \sum_{l \in [L]} g_l(\bm{x}) \bm{W}_l \bm{x} \right) 
+    = \sum_{l,l' \in [L]} g_l(\bm{x}) g_{l'}(\bm{x}) \bm{W}_{l'} \bm{W}_l \bm{x}.
+\end{align*}
+
+Let us consider an alternative way to write the gating mechanism:
+\begin{align*}
+    \sum_{l\in[L]} g_l(\bm{x}) \bm{W}_l \bm{x}
+    &= [\bm{g}(\bm{x}) \otimes I_D]^\top \bm{W} \bm{x},
+\end{align*}
+where 
+\begin{align*}
+    \bm{g}(\bm{x}) = \begin{pmatrix} g_1(\bm{x}) \\ \vdots \\ g_L(\bm{x}) \end{pmatrix}
+    \qquad \text{and} \qquad
+    \bm{W} = \begin{pmatrix} \bm{W}_1 \\ \vdots \\ \bm{W}_L \end{pmatrix}.
+\end{align*}
+
+
+
+\end{document}

@@ -194,14 +194,14 @@ Focusing just on $\tilde{\bm{u}}$ and $\tilde{\bm{v}}$, we have:
     \tilde{\bm{v}}(t) &= \sinh( \bm{\Sigma} S(t) ) \tilde{\bm{u}}(0) + \cosh( \bm{\Sigma} S(t) ) \tilde{\bm{v}}(0),
 \end{align*}
 where $S(t) \triangleq \int_0^t s(t') dt'$ and functions $f$ are applied to matrices $\bm{X}$ via their singular values, i.e. $f(\bm{X}) = \bm{U} f(\bm{\Sigma}) \bm{V}^\top$; so, in this case, we only apply it along the diagonal of $\bm{\Sigma}$.
-Thus, assuming $S(t) \to \infty$ as $t \to \infty$ (which clearly must be the case), \hl{we see that $\tilde{\bm{u}}$ and $\tilde{\bm{v}}$ will align}, since $\cosh(x) \sim \sinh(x) \sim e^x$ for large $x$.
+Thus, assuming $S(t) \to \infty$ as $t \to \infty$ (which clearly must be the case), we see that $\tilde{\bm{u}}$ and $\tilde{\bm{v}}$ will align, since $\cosh(x) \sim \sinh(x) \sim e^x$ for large $x$.
 \footnote{I expect this happens around time $t \sim - \log(\sigma)$ as $\sigma \to 0$.}
 % That is, at some time $t$, $\tilde{\bm{u}} \approx \tilde{\bm{v}} \implies \bm{v} \approx \bm{V} \bm{U}^\top \bm{u} \implies \bm{u} s \bm{v}^\top \approx \bm{V} \bm{U}^\top \bm{u} \bm{u}^\top \cdot s$.
 
 Moreover, it is known that for $\bm{T}$ with entries i.i.d. $\text{Bern}(p)$, there is an outlier singular value on the order of $p n$, while the rest follow the Marchenko-Pastur law, which concentrate in the interval $[0, 2 \sqrt{p(1-p)}]$.
 Assuming we have a $\bm{T}$ of this form, the largest singular value will dominate the dynamics of the system \emph{by a lot}.
 In fact, as $\sigma$ is sufficiently small, we will always see that the largest singular value dominates because the hyperbolic functions grow exponentially.
-Therefore, $\tilde{\bm{u}} \approx c_u \bm{e}_1, \tilde{\bm{v}} \approx c_v \bm{e}_1$, which implies $\bm{u} \approx c_u \bm{u}_*$ and $\bm{v} \approx c_v \bm{v}_*$, where $\bm{u}_*, \bm{v}_*$ are the first columns of $\bm{U}, \bm{V}$, respectively, i.e. the first left and right singular vectors of $\bm{T}$.
+Therefore, $\tilde{\bm{u}} \approx c_u \bm{e}_1, \tilde{\bm{v}} \approx c_v \bm{e}_1$, which implies \hl{ $\bm{u} \approx c_u \bm{u}_*$ and $\bm{v} \approx c_v \bm{v}_*$, where $\bm{u}_*, \bm{v}_*$ are the first columns of $\bm{U}, \bm{V}$, respectively, i.e. the first left and right singular vectors of $\bm{T}$ }.
 
 This means that $\bm{u} s \bm{v}^\top$ emerges to be the best rank-1 approximation of $\bm{T}$, in Frobenius norm, up to a scaling factor.
 Note that if $\bm{u} = \bm{v} = \bm{1}$, the vector of all 1s, then we immediately obtain perfect generalization.

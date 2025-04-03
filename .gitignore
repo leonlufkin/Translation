@@ -164,4 +164,4 @@ cython_debug/
 *.fls
 *.out
 *.synctex.gz
-
+*.fdb_latexmk

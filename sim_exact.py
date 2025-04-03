@@ -158,8 +158,10 @@ def main():
     num_words = 32
     hidden_size = 32
     seed = (0, 1, 2,)
-    init_scale = (1e-2, 1e-3, 1e-4,)
-    train_frac = (0.201, 0.211, 0.221, 0.231, 0.241, 0.251, 0.261, 0.271, 0.281, 0.291, 0.301, 0.311, 0.321, 0.331, 0.341, 0.351,)
+    # init_scale = (1e-2,) # 1e-3, 1e-4,)
+    init_scale = (1e-3, 1e-4,)
+    # train_frac = (0.201, 0.211, 0.221, 0.231, 0.241, 0.251, 0.261, 0.271, 0.281, 0.291, 0.301, 0.311, 0.321, 0.331, 0.341, 0.351,)
+    train_frac = (0.361, 0.371, 0.381, 0.391, 0.401, 0.411, 0.421, 0.431, 0.441, 0.451,)
     
     # Sweep through hyperparameters.
     from tqdm import tqdm
@@ -195,6 +197,49 @@ def main():
             df = pd.DataFrame(results)
             df.to_csv(f"results_exact.csv", index=False)
         print(f"Results saved to results_exact.csv")
+        
+    # Plot the results.
+    plot(results=df, vocabulary_type="exact")
+
+def plot(
+    results: pd.DataFrame | None = None,
+    vocabulary_type: str = "one-hot",
+    truncated: int = 0,
+):
+    if results is None:
+        results = pd.read_csv(f"results_{vocabulary_type}.csv")
+    # Plot the results. Loss vs. train_frac; different lines for hidden_size; different subplots for num_words.
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    sns.set(style="whitegrid")
+    
+    # Get sorted unique num_words
+    unique_init_scale = sorted(results["init_scale"].unique())
+    
+    fig, axes = plt.subplots(1, len(unique_init_scale), figsize=(15, 5), sharey=False)
+    axes = [axes] if len(unique_init_scale) == 1 else axes
+    for i, init_scale in enumerate(sorted(unique_init_scale)):
+        ax = axes[i]
+        df = results[results["init_scale"] == init_scale]
+        sns.lineplot(
+            data=df,
+            x="train_frac",
+            y="test_loss",
+            hue="seed",
+            ax=ax,
+            marker="o",
+            markersize=5,
+        )
+        ax.set_title(f"init_scale={init_scale}")
+        ax.set_xlabel("Fraction of training pairs")
+        ax.set_ylabel("Loss")
+        if truncated:
+            ax.set_ylim(0, truncated)
+    plt.tight_layout()
+    plotname = f"results_{vocabulary_type}_truncated.pdf" if truncated else f"results_{vocabulary_type}.pdf"
+    plt.savefig(plotname)
+    print(f"Results saved to {plotname}")
+    plt.show()
 
 # ----------------------------------------------------------------------
 # Running the experiment.
@@ -213,7 +258,9 @@ if __name__ == '__main__':
     #     seed=0,
     #     # seed=1,
     # )
-    main()
+    # main()
+    plot(vocabulary_type="exact")
+    plot(vocabulary_type="exact", truncated=5)
     
 # NOTE
 # 1. For num_languages=10, num_words=32, hidden_size=32, init_scale=1e-3, width=5, seed=0:

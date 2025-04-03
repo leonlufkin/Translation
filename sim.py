@@ -378,8 +378,8 @@ def plot(
         ax.set_xlabel("Fraction of training pairs")
         ax.set_ylabel("Loss")
     plt.tight_layout()
-    plt.savefig(f"results_{vocabulary_type}.png")
-    print(f"Results saved to results_{vocabulary_type}.png")
+    plt.savefig(f"results_{vocabulary_type}.pdf")
+    print(f"Results saved to results_{vocabulary_type}.pdf")
     plt.show()
 
     

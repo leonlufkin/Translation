@@ -45,6 +45,16 @@ where
     \bm{W} = \begin{pmatrix} \bm{W}_1 \\ \vdots \\ \bm{W}_L \end{pmatrix}.
 \end{align*}
 
+%%%%%%%%%%%%%%
+%% Thoughts %%
+%%%%%%%%%%%%%%
+\section{Thoughts}
+\begin{enumerate}
+    \item Is the loss for Gaussian data the same as the loss for one-hots? I think it may be.
+    \item For Gaussian data, lowering the initialization scale lowers the generalization threshold. Does this imply that as the initialization scale goes to zero, the generalization threshold goes to zero?
+    To investigate this, consider $T = I_L$ and take $\sigma \to 0$.
+    Can we describe the dynamics of the model in this case?
+\end{enumerate}
 
 
 \end{document}

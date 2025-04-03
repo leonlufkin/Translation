@@ -4,7 +4,9 @@ import jax.numpy as jnp
 import jax.random as jr
 import equinox as eqx
 import optax
-from sim import circulant_matrix
+import os
+import pandas as pd
+from sim import circulant_matrix, model_l2_norm
 
 # ----------------------------------------------------------------------
 # Define the MatrixFactorization module (our “model”)
@@ -12,6 +14,7 @@ from sim import circulant_matrix
 class MatrixFactorization(eqx.Module):
     # W_o and W_i are chosen so that W_o @ W_i has shape (L*n, L*n)
     W_o: jnp.ndarray  # shape: (L*n, hidden_size)
+    W_h: jnp.ndarray  # shape: (hidden_size, hidden_size)
     W_i: jnp.ndarray  # shape: (hidden_size, L*n)
 
 # ----------------------------------------------------------------------
@@ -28,7 +31,8 @@ def loss_mf(model: MatrixFactorization, T: jnp.ndarray, L: int, n: int) -> jnp.n
     kron_T = jnp.kron(T, I_n)          # shape: (L*n, L*n)
     
     # Compute the product.
-    prod = model.W_o @ model.W_i
+    prod = model.W_o @ model.W_h @ model.W_i
+    # prod = model.W_o @ model.W_i
     # Compute the elementwise-masked difference.
     diff = (kron_J - prod) * kron_T
     # Return the squared Frobenius norm.
@@ -75,22 +79,35 @@ def train_mf(
     
     for epoch in range(max_epochs):
         loss_val, model, opt_state = train_step_mf(model, optimizer, opt_state, T, L, n)
-        if epoch % (max_epochs // 10) == 0:
-            print(f"Epoch {epoch}/{max_epochs}, Loss: {loss_val:.4f}")
+        if epoch % 1000 == 0:
+            l2norm = model_l2_norm(model)
+            print(f"Epoch {epoch}/{max_epochs}, Loss: {loss_val:.4f}, L2 Norm: {l2norm:.4f}")
             if loss_val < loss_threshold:
                 break
-    print(f"Epoch {epoch}/{max_epochs} (final), Loss: {loss_val:.4f}")
+    # print(f"Epoch {epoch}/{max_epochs} (final), Loss: {loss_val:.4f}")
     return model
 
 # ----------------------------------------------------------------------
 # Define an experiment function to initialize and train the model.
 # ----------------------------------------------------------------------
-def experiment_mf(num_languages: int = 8, num_words: int = 128, hidden_size: int = 32, init_scale: float = 1e-3, seed: int = 0):
+def experiment_mf(num_languages: int = 8, num_words: int = 128, hidden_size: int = 32, init_scale: float = 1e-3, width: int | None = None, train_frac: float | None = None, seed: int = 0):
     key = jr.PRNGKey(seed)
+    dkey, mkey, ekey = jr.split(key, 3)
+    
     # Define T: a fixed binary matrix of shape (num_languages, num_languages).
-    # For example, we use a lower-triangular matrix.
-    # T = jnp.tril(jnp.ones((num_languages, num_languages)))
-    T = circulant_matrix(num_languages, width=4)
+    assert width is not None or train_frac is not None, "Either width or train_frac must be provided."
+    if width is not None:
+        T = circulant_matrix(num_languages, width=width)
+    elif train_frac is not None:
+        num_off_diag = int((num_languages ** 2) - num_languages)
+        num_train_off_diag = int((num_languages ** 2) * train_frac) - num_languages
+        T = jnp.concatenate([jnp.ones(num_train_off_diag), jnp.zeros(num_off_diag - num_train_off_diag)])
+        T = jr.permutation(dkey, T)
+        T = T.reshape((num_languages, num_languages-1))
+        T = jnp.concatenate([jnp.ones((num_languages, 1)), T], axis=1)
+        # Shift each row by its index to create a circulant-like structure.
+        T = jax.vmap(lambda i, row: jnp.roll(row, i))(jnp.arange(T.shape[0]), T)
+        
     print("Language pairs (T):")
     print(T)
     print(f"Training on {int(jnp.sum(T)):d} ({jnp.mean(T):.2%}) language pairs.")
@@ -98,25 +115,27 @@ def experiment_mf(num_languages: int = 8, num_words: int = 128, hidden_size: int
     n = num_words      # n as the dimension of I_n (e.g., vocabulary size)
     
     # Initialize model parameters.
-    model_key1, model_key2 = jr.split(key)
+    model_key1, model_key2, model_key3 = jr.split(mkey, 3)
     W_o = jr.normal(model_key1, (L * n, hidden_size)) * init_scale
-    W_i = jr.normal(model_key2, (hidden_size, L * n)) * init_scale
-    model = MatrixFactorization(W_o=W_o, W_i=W_i)
+    W_h = jr.normal(model_key2, (hidden_size, hidden_size)) * init_scale
+    W_i = jr.normal(model_key3, (hidden_size, L * n)) * init_scale
+    model = MatrixFactorization(W_o=W_o, W_h=W_h, W_i=W_i)
     
     initial_loss = loss_mf(model, T, L, n)
     print("Initial loss:", initial_loss)
     
     # Train the model using T.
     model = train_mf(
-        key,
+        ekey,
         model,
         T,
         L,
         n,
-        optimizer_fn=optax.adam,
-        learning_rate=1e-2,
+        optimizer_fn=optax.sgd,
+        momentum=0.9,
+        learning_rate=5e-3,
         loss_threshold=1e-6,
-        max_epochs=10000,
+        max_epochs=500000,
     )
     
     final_loss = loss_mf(model, T, L, n)
@@ -131,10 +150,74 @@ def experiment_mf(num_languages: int = 8, num_words: int = 128, hidden_size: int
     print("Test loss (using 1-T):", test_loss)
     
     # Return the model and its weights.
-    return model, model.W_o, model.W_i
+    return test_loss, final_loss, jnp.mean(T), int(jnp.sum(T))
+
+def main():
+    # Hyperparameters.
+    num_languages = 10
+    num_words = 32
+    hidden_size = 32
+    seed = (0, 1, 2,)
+    init_scale = (1e-2, 1e-3, 1e-4,)
+    train_frac = (0.201, 0.211, 0.221, 0.231, 0.241, 0.251, 0.261, 0.271, 0.281, 0.291, 0.301, 0.311, 0.321, 0.331, 0.341, 0.351,)
+    
+    # Sweep through hyperparameters.
+    from tqdm import tqdm
+    from itertools import product
+    results = []
+    for idx, (s, i, p) in enumerate(tqdm(product(seed, init_scale, train_frac), desc="Running experiments")):
+        print("\n\n" + 40 * "#" + f" Experiment {idx+1}/{len(train_frac) * len(init_scale) * len(seed)} " + 40 * "#")
+        print(f"Running experiment with train_frac={p}, init_scale={i}, seed={s} ...\n")
+        test_loss, train_loss, pair_frac, num_train = experiment_mf(
+            num_languages=num_languages,
+            num_words=num_words,
+            hidden_size=hidden_size,
+            train_frac=p,
+            init_scale=i,
+            seed=s,
+        )
+        results.append({
+            "num_languages": num_languages,
+            "num_words": num_words,
+            "hidden_size": hidden_size,
+            "train_frac": p,
+            "init_scale": i,
+            "seed": s,
+            "test_loss": test_loss,
+            "train_loss": train_loss,
+        })
+        # Save results.
+        if os.path.exists(f"results_exact.csv"):
+            # just append the most recent result at the end of the file
+            df = pd.DataFrame(results[-1:], index=[0])
+            df.to_csv(f"results_exact.csv", mode="a", header=False, index=False)
+        else:
+            df = pd.DataFrame(results)
+            df.to_csv(f"results_exact.csv", index=False)
+        print(f"Results saved to results_exact.csv")
 
 # ----------------------------------------------------------------------
 # Running the experiment.
 # ----------------------------------------------------------------------
 if __name__ == '__main__':
-    model, W_o, W_i = experiment_mf(num_languages=8, num_words=32, hidden_size=32, init_scale=1e-3, seed=0)
+    # model, W_o, W_i = experiment_mf(
+    #     num_languages=10, 
+    #     num_words=32, 
+    #     hidden_size=32,
+    #     # hidden_size=64, 
+    #     # init_scale=1e-3,
+    #     init_scale=1e-4, 
+    #     # width=5,
+    #     # train_frac=0.30,
+    #     train_frac=0.291,
+    #     seed=0,
+    #     # seed=1,
+    # )
+    main()
+    
+# NOTE
+# 1. For num_languages=10, num_words=32, hidden_size=32, init_scale=1e-3, width=5, seed=0:
+#    - The model can generalize with 30% but not 29%.
+#    - If I increase hidden_size to 64, the model no longer generalizes at 30%.
+# 2. For num_languages=10, num_words=32, hidden_size=32, init_scale=1e-3, width=5, seed=1:
+#    - The model can generalize with 27% but not 26%.

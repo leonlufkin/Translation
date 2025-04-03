@@ -118,7 +118,7 @@ class SharedPathwayNet(models.Net):
     self.hidden_layer = models.Linear(
       in_size=hidden_size,
       out_size=hidden_size,
-      key=jr.fold_in(key, num_input_layers),
+      key=jr.fold_in(key, num_input_layers), # Need to make sure we have different random seeds from the input layers.
       init_fn=init_fn,
       **linear_kwargs,
     )
@@ -130,7 +130,7 @@ class SharedPathwayNet(models.Net):
         init_fn=init_fn,
         **linear_kwargs,
       )
-      for i in range(num_input_layers + 1, num_input_layers + num_output_layers + 1) # Need to make sure we have different random seeds from the input layers.
+      for i in range(num_input_layers + 1, num_input_layers + num_output_layers + 1) # Need to make sure we have different random seeds from the input and hidden layers.
     )
     
   def forward_pass(self, x: Array, *, key: Array) -> Array:

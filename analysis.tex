@@ -1,6 +1,6 @@
 % To add custom packages to the path, go to: /Users/leonlufkin/Library/texmf/tex/latex
 \documentclass{article}
-\usepackage{report}
+\usepackage{myreport}
 
 \title{Shared Representations Model}
 \author{Leon Lufkin}
@@ -80,7 +80,7 @@ We use block matrix notation to clean this up; define:
 Then, using $\bm{J}_L$ to denote the $L \times L$ matrix of all ones, we can write:
 \begin{align*}
     \LL
-    &= \frac{1}{2DT} \left\Vert ( \bm{W}_o \bm{W}_h \bm{W}_i - \bm{\Pi} \bm{\Pi}^\top ) \odot ( \bm{T} \otimes \bm{J}_L ) \right\Vert_F^2,
+    &= \frac{1}{2DT} \left\Vert ( \bm{W}_o \bm{W}_h \bm{W}_i - \bm{\Pi} \bm{\Pi}^\top ) \odot ( \bm{T} \otimes \bm{J}_D ) \right\Vert_F^2,
 \end{align*}
 where $\otimes$ is the Kronecker product and $\odot$ is the Hadamard product.
 
@@ -91,7 +91,7 @@ I believe Andrew said we could make the following, additional, assumption:
 Under \cref{assumption:identity}, the loss function simplifies to:
 \begin{align}
     \LL
-    &= \frac{1}{2DT} \left\Vert ( \bm{W}_o \bm{W}_h \bm{W}_i - \bm{J}_L \otimes \bm{I}_L ) \odot ( \bm{T} \otimes \bm{J}_L ) \right\Vert_F^2.
+    &= \frac{1}{2DT} \left\Vert ( \bm{W}_o \bm{W}_h \bm{W}_i - \bm{J}_L \otimes \bm{I}_D ) \odot ( \bm{T} \otimes \bm{J}_D ) \right\Vert_F^2.
     \label{eq:loss}
 \end{align}
 \underline{This is the loss function we simulate below.}
@@ -159,7 +159,7 @@ This implies that gradient flow (under unit learning rate) is:
 \end{align*}
 
 Consider the behavior of the model when \underline{$\sigma$, the initialization scale, is small}.
-Then, we have $\bm{E} \approx - \bm{J}_L \odot \bm{T} = \bm{T}$.
+Then, we have $\bm{E} \approx - \bm{J}_L \odot \bm{T} = -\bm{T}$.
 So,
 \begin{align*}
     \dd{\bm{u}}{t} \approx s \bm{T} \bm{v}, \quad
@@ -198,7 +198,7 @@ Thus, assuming $S(t) \to \infty$ as $t \to \infty$ (which clearly must be the ca
 \footnote{I expect this happens around time $t \sim - \log(\sigma)$ as $\sigma \to 0$.}
 % That is, at some time $t$, $\tilde{\bm{u}} \approx \tilde{\bm{v}} \implies \bm{v} \approx \bm{V} \bm{U}^\top \bm{u} \implies \bm{u} s \bm{v}^\top \approx \bm{V} \bm{U}^\top \bm{u} \bm{u}^\top \cdot s$.
 
-Moreover, it is known that for $\bm{T}$ with entries i.i.d. $\text{Bern}(p)$, there is an outlier singular value on the order of $p n$, while the rest follow the Marchenko-Pastur law, which concentrate in the interval $[0, 2 \sqrt{p(1-p)}]$.
+Moreover, it is known that for $\bm{T}$ with entries i.i.d. $\text{Bern}(p)$, there is an outlier singular value on the order of $p n$, while the rest follow from the Marchenko-Pastur law and concentrate in the interval $[0, 2 \sqrt{p(1-p)}]$.
 Assuming we have a $\bm{T}$ of this form, the largest singular value will dominate the dynamics of the system \emph{by a lot}.
 In fact, as $\sigma$ is sufficiently small, we will always see that the largest singular value dominates because the hyperbolic functions grow exponentially.
 Therefore, $\tilde{\bm{u}} \approx c_u \bm{e}_1, \tilde{\bm{v}} \approx c_v \bm{e}_1$, which implies \hl{ $\bm{u} \approx c_u \bm{u}_*$ and $\bm{v} \approx c_v \bm{v}_*$, where $\bm{u}_*, \bm{v}_*$ are the first columns of $\bm{U}, \bm{V}$, respectively, i.e. the first left and right singular vectors of $\bm{T}$ }.
@@ -213,6 +213,106 @@ This seems surprising ...)
 I tried to test this observation, and it generally seems to be true, but I can't make the initialization scale small enough to get it to always work.
 It seems like the gap between the largest singular value and the rest needs to be sufficiently large, but mathematically, I don't see why this should be the case.
 As the circulant width increases, this gap appears to grow, which supports why we only see this for wider circulant matrices.
+
+\textbf{Considering $s$.}
+To be more careful, let us go back and include $s$ in the analysis.
+\begin{align*}
+    \dd{\tilde{\bm{u}}}{t} &\approx s \bm{\Sigma} \tilde{\bm{v}}, \quad
+    \dd{s}{t} \approx \tilde{\bm{v}}^\top \bm{\Sigma} \tilde{\bm{u}}, \quad
+    \dd{\tilde{\bm{v}}}{t} \approx s \bm{\Sigma} \tilde{\bm{u}}.
+\end{align*}
+
+% Because I am compelled:
+% \begin{align*}
+%     \dd{s \tilde{\bm{u}}}{t}
+%     &\approx (\tilde{\bm{v}}^\top \bm{\Sigma} \tilde{\bm{u}}) \tilde{\bm{u}} + s^2 \bm{\Sigma} \tilde{\bm{v}} \\
+% \end{align*}
+% \begin{align*}
+%     \dd{^2 s}{t^2}
+%     &\approx \dd{\tilde{\bm{v}}}{t}^\top \bm{\Sigma} \tilde{\bm{u}} + \tilde{\bm{v}}^\top \bm{\Sigma} \dd{\tilde{\bm{u}}}{t}
+%     \approx s \tilde{\bm{u}}^\top \bm{\Sigma}^2 \tilde{\bm{u}} + s \tilde{\bm{v}}^\top \bm{\Sigma}^2 \tilde{\bm{v}}.
+% \end{align*}
+
+
+\section{A More General Case}
+Let us now try to study the loss function in \cref{eq:loss} under the limit $\sigma \to 0$.
+The gradients are:
+\begin{align*}
+    \nabla_{\bm{W}_i} \LL &= \frac{1}{DT} \left( \bm{W}_{o} \bm{W}_{h} \right)^\top \bm{E} \\
+    \nabla_{\bm{W}_h} \LL &= \frac{1}{DT} \bm{W}_{o}^\top \bm{E} \left( \bm{W}_{h} \bm{W}_{i} \right)^\top \bm{W}_{i}^\top \\
+    \nabla_{\bm{W}_o} \LL &= \frac{1}{DT} \bm{E} \left( \bm{W}_{h} \bm{W}_{i} \right)^\top
+\end{align*}
+where $\bm{E} \triangleq \left( \bm{W}_o \bm{W}_h \bm{W}_i - \bm{J}_L \otimes \bm{I}_D \right) \odot ( \bm{T} \otimes \bm{J}_D )$ is the error matrix.
+% \begin{align*}
+%     \partiald{\LL}{\bm{W}_o^{ij}}
+%     &= \langle \left( \bm{W}_o \bm{W}_h \bm{W}_i - \bm{J}_L \otimes \bm{I}_D \right) \odot ( \bm{T} \otimes \bm{J}_D ), (\bm{e}_i \bm{e}_j^\top \bm{W}_h \bm{W}_i) \odot (\bm{T} \otimes \bm{J}_D) \rangle_F \\
+%     &= \tr \left( \left[ \left( \bm{W}_o \bm{W}_h \bm{W}_i - \bm{J}_L \otimes \bm{I}_D \right)^\top \odot ( \bm{T}^\top \otimes \bm{J}_D ) \right] \left[ (\bm{e}_i \bm{e}_j^\top \bm{W}_h \bm{W}_i) \odot (\bm{T} \otimes \bm{J}_D) \right] \right) \\
+%     &= 
+% \end{align*}
+Therefore, the gradient flow (under unit learning rate) is:
+\begin{align*}
+    \dd{\bm{W}_i}{t} &= -\frac{1}{DT} \left( \bm{W}_{o} \bm{W}_{h} \right)^\top \bm{E} \\
+    \dd{\bm{W}_h}{t} &= -\frac{1}{DT} \bm{W}_{o}^\top \bm{E} \bm{W}_{i}^\top \\
+    \dd{\bm{W}_o}{t} &= -\frac{1}{DT} \bm{E} \left( \bm{W}_{h} \bm{W}_{i} \right)^\top.
+\end{align*}
+Again, as $\sigma \to 0$, $\bm{E} \approx - \bm{T} \otimes \bm{I}_D$, so
+\begin{align*}
+    \dd{\bm{W}_i}{t} &\approx \frac{1}{DT} \left( \bm{W}_{o} \bm{W}_{h} \right)^\top \left[ \bm{T} \otimes \bm{I}_D \right] \\
+    \dd{\bm{W}_h}{t} &\approx \frac{1}{DT} \bm{W}_{o}^\top \left[ \bm{T} \otimes \bm{I}_D \right] \bm{W}_{i}^\top \\
+    \dd{\bm{W}_o}{t} &\approx \frac{1}{DT} \left[ \bm{T} \otimes \bm{I}_D \right] \left( \bm{W}_{h} \bm{W}_{i} \right)^\top.
+\end{align*}
+
+\textbf{Changing bases w.r.t. $\bm{T}$.}
+Let $\bm{T} = \bm{U} \bm{\Sigma} \bm{V}^\top$ be the SVD of $\bm{T}$.
+Let $\tilde{\bm{U}} \triangleq \bm{U} \otimes \bm{I}_D$, $\tilde{\bm{\Sigma}} \triangleq \bm{\Sigma} \otimes \bm{I}_D$, and $\tilde{\bm{V}} \triangleq \bm{V} \otimes \bm{I}_D$.
+Then, we can write:
+\begin{align*}
+    \dd{(\bm{W}_i \tilde{\bm{V}})}{t} &\approx \frac{1}{DT} \bm{W}_{h}^\top (\tilde{\bm{U}}^\top \bm{W}_{o})^\top \tilde{\bm{\Sigma}} \\
+    \dd{\bm{W}_h}{t} &\approx \frac{1}{DT} (\tilde{\bm{U}^\top} \bm{W}_{o})^\top \tilde{\bm{\Sigma}} (\bm{W}_{i} \tilde{\bm{V}})^\top \\
+    \dd{(\tilde{\bm{U^\top}} \bm{W}_{o})}{t} &\approx \frac{1}{DT} \tilde{\bm{\Sigma}} (\bm{W}_{i} \tilde{\bm{V}})^\top \bm{W}_{h}^\top.
+\end{align*}
+Defining $\tilde{\bm{W}}_i \triangleq \bm{W}_i \tilde{\bm{V}}$ and $\tilde{\bm{W}}_o \triangleq \tilde{\bm{U}^\top} \bm{W}_{o}$, we have:
+\begin{align*}
+    \dd{\tilde{\bm{W}}_i}{t} &\approx \frac{1}{DT} \bm{W}_{h}^\top \tilde{\bm{W}}_o^\top \tilde{\bm{\Sigma}} \\
+    \dd{\bm{W}_h}{t} &\approx \frac{1}{DT} \tilde{\bm{W}}_o^\top \tilde{\bm{\Sigma}} \tilde{\bm{W}}_i^\top \\
+    \dd{\tilde{\bm{W}}_{o}^\top}{t} &\approx \frac{1}{DT} \bm{W}_{h} \tilde{\bm{W}}_i \tilde{\bm{\Sigma}}.
+\end{align*}
+
+
+\textbf{Changing bases w.r.t. $\bm{W}_h$.}
+% Let us consider the special case $\bm{T} = \bm{I}_L$.
+Let $\bm{W}_h = \bm{U}_h \bm{\Sigma}_h \bm{V}_h^\top$ be the SVD of $\bm{W}_h(0)$.
+Then, we can write:
+\begin{align*}
+    \dd{\bm{W}_i}{t} &\approx \frac{1}{DT} \bm{V} \bm{\Sigma}_h \bm{U}_h^\top \bm{W}_{o}^\top \left[ \bm{T} \otimes \bm{I}_D \right], \\
+    \dd{\bm{W}_h}{t} &\approx \frac{1}{DT} \bm{W}_{o}^\top \left[ \bm{T} \otimes \bm{I}_D \right] \bm{W}_{i}^\top, \\
+    \dd{\bm{W}_o}{t} &\approx \frac{1}{DT} \left[ \bm{T} \otimes \bm{I}_D \right] \bm{W}_{i}^\top \bm{V}_h \bm{\Sigma}_h \bm{U}_h^\top.
+\end{align*}
+Changing bases,
+\begin{align*}
+    \dd{(\bm{V}_h^\top \bm{W}_i)}{t} &\approx \frac{1}{DT} \bm{\Sigma}_h (\bm{W}_{o} \bm{U}_h)^\top \left[ \bm{T} \otimes \bm{I}_D \right], \\
+    \dd{\bm{U}_h^\top \bm{W}_h \bm{V}_h}{t} &\approx \frac{1}{DT} (\bm{W}_{o} \bm{U}_h)^\top \left[ \bm{T} \otimes \bm{I}_D \right] (\bm{V}_h^\top \bm{W}_{i})^\top, \\
+    \dd{(\bm{W}_o \bm{U}_h)}{t} &\approx \frac{1}{DT} \left[ \bm{T} \otimes \bm{I}_D \right] (\bm{V}_h^\top \bm{W}_{i})^\top \bm{\Sigma}_h.
+\end{align*}
+Defining $\tilde{\bm{W}}_i \triangleq \bm{V}_h^\top \bm{W}_i$, $\tilde{\bm{W}}_h \triangleq \bm{U}_h^\top \bm{W}_h \bm{V}_h$, and $\tilde{\bm{W}}_o \triangleq \bm{W}_o \bm{U}_h$, we have:
+\begin{align*}
+    \dd{\tilde{\bm{W}}_i}{t} &\approx \frac{1}{DT} \bm{\Sigma}_h \tilde{\bm{W}}_o^\top \left[ \bm{T} \otimes \bm{I}_D \right], \quad
+    \dd{\tilde{\bm{W}}_h}{t} \approx \frac{1}{DT} \tilde{\bm{W}}_o^\top \left[ \bm{T} \otimes \bm{I}_D \right] \tilde{\bm{W}}_i^\top, \quad
+    \dd{\tilde{\bm{W}}_o}{t} \approx \frac{1}{DT} \left[ \bm{T} \otimes \bm{I}_D \right] \tilde{\bm{W}}_i^\top \bm{\Sigma}_h.
+\end{align*}
+Focusing just on the $\tilde{\bm{W}}_i$ and $\tilde{\bm{W}}_o$ dynamics gives:
+\begin{align*}
+    \dd{\tilde{\bm{W}}_i}{t} &\approx \frac{1}{DT} \bm{\Sigma}_h \tilde{\bm{W}}_o^\top \left[ \bm{T} \otimes \bm{I}_D \right], \quad
+    \dd{\tilde{\bm{W}}_o^\top}{t} \approx \frac{1}{DT} \bm{\Sigma}_h \tilde{\bm{W}}_i \left[ \bm{T} \otimes \bm{I}_D \right].
+\end{align*}
+So, we have a system of the form:
+\begin{align*}
+    \dd{\bm{A}}{t} &= \bm{D} \bm{B} \bm{M}, \quad
+    \dd{\bm{B}}{t} = \bm{D} \bm{A} \bm{M},
+\end{align*}
+where $\bm{A}, \bm{B} \in \R^{d \times n}$ are arbitrary, $\bm{D} \in \R^{d \times d}$ is a diagonal matrix, and $\bm{M} \in \R^{n \times n}$ is a binary matrix.
+
+
 
 % Since this happens for small enough $\sigma$, we can now assume this structure at initialization to get a setting that is approximate, but asymptotically correct (in $\sigma$).
 % This gives us the simpler dynamical system:
